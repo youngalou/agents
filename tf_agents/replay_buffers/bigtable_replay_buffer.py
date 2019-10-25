@@ -42,7 +42,7 @@ class BigtableReplayBuffer(replay_buffer.ReplayBuffer):
     #INSTANTIATE CBT TABLE AND GCS BUCKET
     credentials = service_account.Credentials.from_service_account_file(SERVICE_ACCOUNT_FILE, scopes=SCOPES)
     self.cbt_table = cbt_load_table(kwargs['gcp_project_id'], kwargs['cbt_instance_id'], kwargs['cbt_table_name'], credentials)
-    max_row_bytes = (4*np.prod(data_spec.shape) + 64)
+    max_row_bytes = (4*np.prod(self.obs_shape) + 64)
     self.cbt_batcher = self.cbt_table.mutations_batcher(flush_count=kwargs['num_episodes'], max_row_bytes=max_row_bytes)
     
     self.global_traj_buff_size = kwargs['global_traj_buff_size']
