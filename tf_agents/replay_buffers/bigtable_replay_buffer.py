@@ -107,7 +107,7 @@ class BigtableReplayBuffer(replay_buffer.ReplayBuffer):
         bytes_item = row.cells['step']['trajectory'.encode()][0].value
         pb2_trajectory = tf_agents_trajectory_pb2.Trajectory()
         pb2_trajectory.ParseFromString(bytes_item)
-        item = self.item_from_trajectory()
+        item = self.item_from_trajectory(pb2_trajectory)
         return item
 
   def item_from_trajectory(self, pb2_trajectory):
