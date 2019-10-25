@@ -1,0 +1,13 @@
+syntax = "proto3";
+
+package tf_agents_trajectory;
+
+message Trajectory {
+    bytes step_type = 1;
+    bytes observation = 2;
+    bytes action = 3;
+    bytes policy_info = 4;
+    bytes next_step_type = 5;
+    bytes reward = 6;
+    bytes discount = 7;
+}
