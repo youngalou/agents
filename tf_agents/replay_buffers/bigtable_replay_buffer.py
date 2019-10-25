@@ -37,6 +37,7 @@ class BigtableReplayBuffer(replay_buffer.ReplayBuffer):
       capacity: The maximum number of items that can be stored in the buffer.
     """
     super(BigtableReplayBuffer, self).__init__(data_spec, capacity)
+    self.obs_shape = np.append(1, self.data_spec.observation.shape).astype(np.int32)
 
     #INSTANTIATE CBT TABLE AND GCS BUCKET
     credentials = service_account.Credentials.from_service_account_file(SERVICE_ACCOUNT_FILE, scopes=SCOPES)
@@ -112,7 +113,7 @@ class BigtableReplayBuffer(replay_buffer.ReplayBuffer):
   def item_from_trajectory(self, pb2_trajectory):
     item = trajectory.Trajectory()
     item.step_type = np.frombuffer(pb2_trajectory.step_type, dtype=np.int32)
-    item.observation = np.frombuffer(pb2_trajectory.observation, dtype=np.uint8).reshape(self.data_spec.shape)
+    item.observation = np.frombuffer(pb2_trajectory.observation, dtype=np.uint8).reshape(self.obs_shape)
     item.action = np.frombuffer(pb2_trajectory.action, dtype=np.int32)
     # item.policy_info = np.frombuffer(pb2_trajectory.policy_info, dtype=np.int32)
     item.next_step_type = np.frombuffer(pb2_trajectory.next_step_type, dtype=np.int32)
