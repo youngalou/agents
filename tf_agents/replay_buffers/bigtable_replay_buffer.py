@@ -148,15 +148,15 @@ class BigtableReplayBuffer(replay_buffer.ReplayBuffer):
         return item
 
   def item_from_trajectory(self, pb2_trajectory):
-    item = trajectory.Trajectory()
-    item.step_type = np.frombuffer(pb2_trajectory.step_type, dtype=np.int32)
-    item.observation = np.frombuffer(pb2_trajectory.observation, dtype=np.uint8).reshape(self.obs_shape)
-    item.action = np.frombuffer(pb2_trajectory.action, dtype=np.int32)
-    # item.policy_info = np.frombuffer(pb2_trajectory.policy_info, dtype=np.int32)
-    item.next_step_type = np.frombuffer(pb2_trajectory.next_step_type, dtype=np.int32)
-    item.reward = np.frombuffer(pb2_trajectory.reward, dtype=np.float32)
-    item.discount =np.frombuffer(pb2_trajectory.discount, dtype=np.float32)
-    return item
+    return trajectory.Trajectory(
+      step_type=np.frombuffer(pb2_trajectory.step_type, dtype=np.int32),
+      observation=np.frombuffer(pb2_trajectory.observation, dtype=np.uint8).reshape(self.obs_shape),
+      action=np.frombuffer(pb2_trajectory.action, dtype=np.int32),
+      policy_info=None,#np.frombuffer(pb2_trajectory.policy_info, dtype=np.int32)
+      next_step_type=np.frombuffer(pb2_trajectory.next_step_type, dtype=np.int32),
+      reward=np.frombuffer(pb2_trajectory.reward, dtype=np.float32),
+      discount=np.frombuffer(pb2_trajectory.discount, dtype=np.float32)
+    )
 
   def _get_next(self,
                 sample_batch_size=None,
