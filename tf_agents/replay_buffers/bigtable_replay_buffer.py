@@ -186,64 +186,64 @@ class BigtableReplayBuffer(replay_buffer.ReplayBuffer):
         sample_batch_size, num_steps, num_parallel_calls,
         single_deterministic_pass=single_deterministic_pass)
 
-  # def _as_dataset(self, sample_batch_size=None, num_steps=None,
-  #                 num_parallel_calls=None):
-  #   if num_parallel_calls is not None:
-  #     raise NotImplementedError('PyUniformReplayBuffer does not support '
-  #                               'num_parallel_calls (must be None).')
-
-  #   data_spec = self._data_spec
-  #   if sample_batch_size is not None:
-  #     data_spec = array_spec.add_outer_dims_nest(
-  #         data_spec, (sample_batch_size,))
-  #   if num_steps is not None:
-  #     data_spec = (data_spec,) * num_steps
-  #   shapes = tuple(s.shape for s in tf.nest.flatten(data_spec))
-  #   dtypes = tuple(s.dtype for s in tf.nest.flatten(data_spec))
-
-  #   def generator_fn():
-  #     while True:
-  #       if sample_batch_size is not None:
-  #         batch = [self._get_next(num_steps=num_steps, time_stacked=False)
-  #                  for _ in range(sample_batch_size)]
-  #         item = nest_utils.stack_nested_arrays(batch)
-  #       else:
-  #         item = self._get_next(num_steps=num_steps, time_stacked=False)
-  #       yield tuple(tf.nest.flatten(item))
-
-  #   def time_stack(*structures):
-  #     time_axis = 0 if sample_batch_size is None else 1
-  #     return tf.nest.map_structure(
-  #         lambda *elements: tf.stack(elements, axis=time_axis), *structures)
-
-  #   ds = tf.data.Dataset.from_generator(
-  #       generator_fn, dtypes,
-  #       shapes).map(lambda *items: tf.nest.pack_sequence_as(data_spec, items))
-  #   if num_steps is not None:
-  #     return ds.map(time_stack)
-  #   else:
-  #     return ds
-  
-  def _as_dataset(self,
-                  sample_batch_size=None,
-                  num_steps=None,
+  def _as_dataset(self, sample_batch_size=None, num_steps=None,
                   num_parallel_calls=None):
-    """Creates a dataset that returns entries from the buffer in shuffled order.
-    Args:
-      sample_batch_size: (Optional.) An optional batch_size to specify the
-        number of items to return. See as_dataset() documentation.
-      num_steps: (Optional.)  Optional way to specify that sub-episodes are
-        desired. See as_dataset() documentation.
-      num_parallel_calls: (Optional.) Number elements to process in parallel.
-        See as_dataset() documentation.
-    Returns:
-      A dataset of type tf.data.Dataset, elements of which are 2-tuples of:
-        - An item or sequence of items or batch thereof
-        - Auxiliary info for the items (i.e. ids, probs).
-    """
-    def get_next(_):
-      return self.get_next(sample_batch_size, num_steps, time_stacked=True)
+    if num_parallel_calls is not None:
+      raise NotImplementedError('PyUniformReplayBuffer does not support '
+                                'num_parallel_calls (must be None).')
 
-    dataset = tf.data.experimental.Counter().map(
-        get_next, num_parallel_calls=num_parallel_calls)
-    return dataset
+    data_spec = self._data_spec
+    if sample_batch_size is not None:
+      data_spec = array_spec.add_outer_dims_nest(
+          data_spec, (sample_batch_size,))
+    if num_steps is not None:
+      data_spec = (data_spec,) * num_steps
+    shapes = tuple(s.shape for s in tf.nest.flatten(data_spec))
+    dtypes = tuple(s.dtype for s in tf.nest.flatten(data_spec))
+
+    def generator_fn():
+      while True:
+        if sample_batch_size is not None:
+          batch = [self._get_next(num_steps=num_steps, time_stacked=False)
+                   for _ in range(sample_batch_size)]
+          item = nest_utils.stack_nested_arrays(batch)
+        else:
+          item = self._get_next(num_steps=num_steps, time_stacked=False)
+        yield tuple(tf.nest.flatten(item))
+
+    def time_stack(*structures):
+      time_axis = 0 if sample_batch_size is None else 1
+      return tf.nest.map_structure(
+          lambda *elements: tf.stack(elements, axis=time_axis), *structures)
+
+    ds = tf.data.Dataset.from_generator(
+        generator_fn, dtypes,
+        shapes).map(lambda *items: tf.nest.pack_sequence_as(data_spec, items))
+    if num_steps is not None:
+      return ds.map(time_stack)
+    else:
+      return ds
+  
+  # def _as_dataset(self,
+  #                 sample_batch_size=None,
+  #                 num_steps=None,
+  #                 num_parallel_calls=None):
+  #   """Creates a dataset that returns entries from the buffer in shuffled order.
+  #   Args:
+  #     sample_batch_size: (Optional.) An optional batch_size to specify the
+  #       number of items to return. See as_dataset() documentation.
+  #     num_steps: (Optional.)  Optional way to specify that sub-episodes are
+  #       desired. See as_dataset() documentation.
+  #     num_parallel_calls: (Optional.) Number elements to process in parallel.
+  #       See as_dataset() documentation.
+  #   Returns:
+  #     A dataset of type tf.data.Dataset, elements of which are 2-tuples of:
+  #       - An item or sequence of items or batch thereof
+  #       - Auxiliary info for the items (i.e. ids, probs).
+  #   """
+  #   def get_next(_):
+  #     return self.get_next(sample_batch_size, num_steps, time_stacked=True)
+
+  #   dataset = tf.data.experimental.Counter().map(
+  #       get_next, num_parallel_calls=num_parallel_calls)
+  #   return dataset
