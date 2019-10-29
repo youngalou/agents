@@ -100,7 +100,7 @@ class BigtableReplayBuffer(replay_buffer.ReplayBuffer):
     pb2_trajectory = tf_agents_trajectory_pb2.Trajectory()
     if self.env_type == 'tf_env':
       pb2_trajectory.step_type = items.step_type.numpy().tobytes()
-      pb2_trajectory.observation = items.observation.numpy().flatten().tobytes()
+      pb2_trajectory.observation = items.observation.numpy().astype(np.float32).flatten().tobytes()
       pb2_trajectory.action = items.action.numpy().astype(np.int32).tobytes()
       # pb2_trajectory.policy_info = items.policy_info
       pb2_trajectory.next_step_type = items.next_step_type.numpy().tobytes()
@@ -108,7 +108,7 @@ class BigtableReplayBuffer(replay_buffer.ReplayBuffer):
       pb2_trajectory.discount = items.discount.numpy().tobytes()
     else:
       pb2_trajectory.step_type = items.step_type.tobytes()
-      pb2_trajectory.observation = items.observation.flatten().tobytes()
+      pb2_trajectory.observation = items.observation.astype(np.float32).flatten().tobytes()
       pb2_trajectory.action = items.action.astype(np.int32).tobytes()
       # pb2_trajectory.policy_info = items.policy_info
       pb2_trajectory.next_step_type = items.next_step_type.tobytes()
@@ -150,7 +150,7 @@ class BigtableReplayBuffer(replay_buffer.ReplayBuffer):
   def item_from_trajectory(self, pb2_trajectory):
     return trajectory.Trajectory(
       step_type=np.frombuffer(pb2_trajectory.step_type, dtype=np.int32),
-      observation=np.frombuffer(pb2_trajectory.observation, dtype=np.uint8).reshape(self.obs_shape),
+      observation=np.frombuffer(pb2_trajectory.observation, dtype=np.float32).reshape(self.obs_shape),
       action=np.frombuffer(pb2_trajectory.action, dtype=np.int32),
       policy_info=None,#np.frombuffer(pb2_trajectory.policy_info, dtype=np.int32)
       next_step_type=np.frombuffer(pb2_trajectory.next_step_type, dtype=np.int32),
