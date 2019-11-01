@@ -4,6 +4,7 @@ import numpy as np
 
 from google.oauth2 import service_account
 from google.cloud import bigtable
+from google.cloud.bigtable import row_filters
 
 
 def cbt_load_table(gcp_project_id, cbt_instance_id, cbt_table_name, credentials):
@@ -29,12 +30,13 @@ def cbt_load_table(gcp_project_id, cbt_instance_id, cbt_table_name, credentials)
         print("-> Table found.")
     return cbt_table
 
+
 def cbt_global_iterator(cbt_table):
     """ Fetches and sets global iterator from bigtable.
 
         cbt_table -- bigtable object (default none)
     """
-    row_filter = bigtable.row_filters.CellsColumnLimitFilter(1)
+    row_filter = row_filters.CellsColumnLimitFilter(1)
     gi_row = cbt_table.read_row('collection_global_iterator'.encode())
     if gi_row is not None:
         global_i = gi_row.cells['global']['i'.encode()][0].value
@@ -50,7 +52,7 @@ def cbt_global_iterator(cbt_table):
     return global_i
 
 def cbt_global_trajectory_buffer(cbt_table, local_traj_buff, global_traj_buff_size):
-    row_filter = bigtable.row_filters.CellsColumnLimitFilter(1)
+    row_filter = row_filters.CellsColumnLimitFilter(1)
     old_row = cbt_table.read_row('global_traj_buff'.encode())
     if old_row is not None:
         global_traj_buff = np.frombuffer(old_row.cells['global']['traj_buff'.encode()][0].value, dtype=np.int32)
@@ -67,7 +69,7 @@ def cbt_global_trajectory_buffer(cbt_table, local_traj_buff, global_traj_buff_si
     cbt_table.mutate_rows([new_row])
 
 def cbt_get_global_trajectory_buffer(cbt_table):
-    row_filter = bigtable.row_filters.CellsColumnLimitFilter(1)
+    row_filter = row_filters.CellsColumnLimitFilter(1)
     row = cbt_table.read_row('global_traj_buff'.encode())
     if row is not None:
         return np.flip(np.frombuffer(row.cells['global']['traj_buff'.encode()][0].value, dtype=np.int32), axis=0)
