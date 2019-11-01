@@ -71,6 +71,7 @@ class BigtableReplayBuffer(replay_buffer.ReplayBuffer):
     tf.nest.assert_same_structure(items, self._data_spec)
     outer_shape = nest_utils.get_outer_array_shape(items, self._data_spec)
     with tf.device(self._device), tf.name_scope(self._scope):
+      self.next_episode()
       if outer_shape[0] != 1:
         for item in items:
           self.bigtable_add_row(item)
