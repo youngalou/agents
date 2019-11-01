@@ -16,8 +16,8 @@ from tf_agents.utils import nest_utils
 from tf_agents.trajectories import trajectory
 
 from tf_agents.protobuf import tf_agents_trajectory_pb2
-from tf_agents.utils.gcp_io import cbt_load_table, cbt_global_iterator, cbt_global_trajectory_buffer, \
-                                    cbt_read_trajectory, cbt_get_global_trajectory_buffer
+from tf_agents.utils.gcp_io import cbt_load_table, cbt_read_trajectory, cbt_global_iterator, \
+                                cbt_global_trajectory_buffer, cbt_get_global_trajectory_buffer
 
 #SET API CREDENTIALS
 SCOPES = ['https://www.googleapis.com/auth/cloud-platform']
@@ -27,7 +27,7 @@ BufferInfo = collections.namedtuple('BufferInfo',
                                     ['ids', 'probabilities'])
 
 class BigtableReplayBuffer(replay_buffer.ReplayBuffer):
-  """A Python-based replay buffer that supports uniform sampling.
+  """A Bigtable-based replay buffer that supports uniform sampling.
   Writing and reading to this replay buffer is thread safe.
   This replay buffer can be subclassed to change the encoding used for the
   underlying storage by overriding _encoded_data_spec, _encode, _decode, and
@@ -37,59 +37,46 @@ class BigtableReplayBuffer(replay_buffer.ReplayBuffer):
   def __init__(self,
                data_spec,
                batch_size,
-               max_length=1000,
-               scope='TFUniformReplayBuffer',
+               gcp_project_id,
+               cbt_instance_id,
+               cbt_table_name,
+               global_traj_buff_size,
+               env_type,
+               scope='BigtableReplayBuffer',
                device='cpu:*',
-               table_fn=table.Table,
-               dataset_drop_remainder=False,
-               dataset_window_shift=None,
                stateful_dataset=False,
                **kwargs):
-    """Creates a PyUniformReplayBuffer.
+    """Creates a BigtableReplayBuffer.
     Args:
       data_spec: An ArraySpec or a list/tuple/nest of ArraySpecs describing a
         single item that can be stored in this buffer.
-      capacity: The maximum number of items that can be stored in the buffer.
     """
+    super(BigtableReplayBuffer, self).__init__(data_spec, 0, stateful_dataset)
     self._batch_size = batch_size
-    self._max_length = max_length
-    capacity = self._batch_size * self._max_length
-    super(BigtableReplayBuffer, self).__init__(data_spec, capacity, stateful_dataset)
-
-    self._id_spec = tensor_spec.TensorSpec([], dtype=tf.int64, name='id')
-    self._capacity_value = np.int64(self._capacity)
-    self._batch_offsets = (
-        tf.range(self._batch_size, dtype=tf.int64) * self._max_length)
     self._scope = scope
     self._device = device
-    self._table_fn = table_fn
-    self._dataset_drop_remainder = dataset_drop_remainder
-    self._dataset_window_shift = dataset_window_shift
-    with tf.device(self._device), tf.compat.v1.variable_scope(self._scope):
-      self._capacity = tf.constant(capacity, dtype=tf.int64)
-      self._data_table = table_fn(self._data_spec, self._capacity_value)
-      self._id_table = table_fn(self._id_spec, self._capacity_value)
-      self._last_id = common.create_variable('last_id', -1)
-      self._last_id_cs = tf.CriticalSection(name='last_id')
-
-    super(BigtableReplayBuffer, self).__init__(data_spec, capacity)
     self.obs_shape = np.append(1, self.data_spec.observation.shape).astype(np.int32)
 
     #INSTANTIATE CBT TABLE AND GCS BUCKET
     credentials = service_account.Credentials.from_service_account_file(SERVICE_ACCOUNT_FILE, scopes=SCOPES)
-    self.cbt_table = cbt_load_table(kwargs['gcp_project_id'], kwargs['cbt_instance_id'], kwargs['cbt_table_name'], credentials)
+    self.cbt_table = cbt_load_table(gcp_project_id, cbt_instance_id, cbt_table_name, credentials)
     max_row_bytes = (4*np.prod(self.obs_shape) + 64)
-    self.cbt_batcher = self.cbt_table.mutations_batcher(flush_count=kwargs['num_episodes'], max_row_bytes=max_row_bytes)
+    self.cbt_batcher = self.cbt_table.mutations_batcher(flush_count=1, max_row_bytes=max_row_bytes)
     
-    self.global_traj_buff_size = kwargs['global_traj_buff_size']
-    self.env_type = kwargs['env_type']
+    self.global_traj_buff_size = global_traj_buff_size
+    self.env_type = env_type
     self.reset()
 
   def _add_batch(self, items):
     tf.nest.assert_same_structure(items, self._data_spec)
+    outer_shape = nest_utils.get_outer_array_shape(items, self._data_spec)
     with tf.device(self._device), tf.name_scope(self._scope):
-      self.next_episode()
-      self.bigtable_add_row(items)
+      self.next_batch()
+      if outer_shape[0] != 1:
+        for item in items:
+          self.bigtable_add_row(item)
+      else:
+        self.bigtable_add_row(items)
       self.bigtable_write_rows()
   
   def next_episode(self):
