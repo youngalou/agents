@@ -9,9 +9,6 @@ import tensorflow as tf
 from google.oauth2 import service_account
 
 from tf_agents.replay_buffers import replay_buffer
-from tf_agents.replay_buffers import table
-from tf_agents.specs import tensor_spec
-from tf_agents.utils import common
 from tf_agents.utils import nest_utils
 from tf_agents.trajectories import trajectory
 
